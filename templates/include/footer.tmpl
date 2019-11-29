@@ -1,13 +1,21 @@
 {{define "footer"}}
-		<footer{{if not .SingleUser}} class="contain-me"{{end}}>
+		<footer{{if not (or .SingleUser .WFModesty)}} class="contain-me"{{end}}>
 			<hr />
-			{{if .SingleUser}}
+			{{if or .SingleUser .WFModesty}}
 			<nav>
 				<a class="home" href="/">{{.SiteName}}</a>
-				<a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide">writer's guide</a>
-				<a href="https://developers.write.as/" title="Build on WriteFreely with our open developer API.">developers</a>
-				<a href="https://github.com/writeas/writefreely">source code</a>
-				<a href="https://writefreely.org">writefreely {{.Version}}</a>
+				{{if not .SingleUser}}
+					<a href="/about" data-i18n="footer.about">about</a>
+					{{if .LocalTimeline}}<a href="/read" data-i18n="footer.reader">reader</a>{{end}}
+					{{/* {{if .Username}}<a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide">writer's guide</a>{{end}} */}}
+					<a href="/privacy" data-i18n="footer.privacy">privacy</a>
+					<p style="font-size: 0.9em" data-i18n="footer.based_on_writefreely">powered by <a href="https://writefreely.org">writefreely</a></p>
+				{{else}}
+					{{/* <a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide">writer's guide</a> */}}
+					{{/* <a href="https://developers.write.as/" title="Build on WriteFreely with our open developer API.">developers</a> */}}
+					{{/* <a href="https://github.com/writeas/writefreely">source code</a> */}}
+					<a href="https://writefreely.org">writefreely {{.Version}}</a>
+				{{end}}
 			</nav>
 			{{else}}
 			<div class="marketing-section">
@@ -15,18 +23,23 @@
 					<div class="half">
 						<h3><a class="home" href="/">{{.SiteName}}</a></h3>
 						<ul>
-							<li><a href="/about">about</a></li>
-							{{if and (and (not .SingleUser) .LocalTimeline) .CanViewReader}}<a href="/read">reader</a>{{end}}
-							<li><a href="/privacy">privacy</a></li>
+							<li><a href="/about" data-i18n="footer.about">about</a></li>
+							{{if and (and (not .SingleUser) .LocalTimeline) .CanViewReader}}<a href="/read" data-i18n="footer.reader">reader</a>{{end}}
+							<li><a href="/privacy" data-i18n="footer.privacy">privacy</a></li>
 						</ul>
 					</div>
 					<div class="half">
-						<h3><a href="https://writefreely.org" style="color:#444;text-transform:lowercase;">WriteFreely</a></h3>
+						{{/* <h3><a href="https://writefreely.org" style="color:#444;text-transform:lowercase;">WriteFreely</a></h3> */}}
 						<ul>
-							<li><a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide">writer's guide</a></li>
-							<li><a href="https://developers.write.as/" title="Build on WriteFreely with our open developer API.">developers</a></li>
-							<li><a href="https://github.com/writeas/writefreely">source code</a></li>
-							<li style="margin-top:0.8em">{{.Version}}</li>
+							<li><a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide" data-i18n="footer.writer_guide">writer's guide</a></li>
+							{{/* <li><a href="https://developers.write.as/" title="Build on WriteFreely with our open developer API.">developers</a></li> */}}
+							<li><a href="https://github.com/laosb/writefreely-iw" data-i18n="footer.source_code">source code</a></li>
+							<li>
+							    <a href="javascript:i18next.changeLanguage('zh')">中文</a>
+							    <a href="javascript:i18next.changeLanguage('zh-CN')">大陆简中</a>
+							    <a href="javascript:i18next.changeLanguage('en')">English</a>
+							</li>
+							<li style="margin-top:0.8em"><span data-i18n="footer.based_on_writefreely">based on WriteFreely </span>{{.Version}}</li>
 						</ul>
 					</div>
 				</div>

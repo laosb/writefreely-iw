@@ -35,6 +35,7 @@ type (
 
 		TLSCertPath string `ini:"tls_cert_path"`
 		TLSKeyPath  string `ini:"tls_key_path"`
+		Autocert    bool   `ini:"autocert"`
 
 		TemplatesParentDir string `ini:"templates_parent_dir"`
 		StaticParentDir    string `ini:"static_parent_dir"`
@@ -63,9 +64,16 @@ type (
 
 		// Site appearance
 		Theme      string `ini:"theme"`
+		Editor     string `ini:"editor"`
 		JSDisabled bool   `ini:"disable_js"`
 		WebFonts   bool   `ini:"webfonts"`
 		Landing    string `ini:"landing"`
+		SimpleNav  bool   `ini:"simple_nav"`
+		WFModesty  bool   `ini:"wf_modesty"`
+
+		// Site functionality
+		Chorus        bool `ini:"chorus"`
+		DisableDrafts bool `ini:"disable_drafts"`
 
 		// Users
 		SingleUser       bool `ini:"single_user"`
@@ -83,6 +91,9 @@ type (
 		// Additional functions
 		LocalTimeline bool   `ini:"local_timeline"`
 		UserInvites   string `ini:"user_invites"`
+
+		// Defaults
+		DefaultVisibility string `ini:"default_visibility"`
 	}
 
 	// Config holds the complete configuration for running a writefreely instance

@@ -65,9 +65,9 @@ func defaultPrivacyTitle() sql.NullString {
 
 func defaultAboutPage(cfg *config.Config) string {
 	if cfg.App.Federation {
-		return `_` + cfg.App.SiteName + `_ is an interconnected place for you to write and publish, powered by WriteFreely and ActivityPub.`
+		return `_` + cfg.App.SiteName + `_ is an interconnected place for you to write and publish, powered by [WriteFreely](https://writefreely.org) and ActivityPub.`
 	}
-	return `_` + cfg.App.SiteName + `_ is a place for you to write and publish, powered by WriteFreely.`
+	return `_` + cfg.App.SiteName + `_ is a place for you to write and publish, powered by [WriteFreely](https://writefreely.org).`
 }
 
 func defaultPrivacyPolicy(cfg *config.Config) string {
@@ -134,4 +134,31 @@ The fediverse is a large network of platforms that all speak a common language. 
 WriteFreely can communicate with other federated platforms like Mastodon, so people can follow your blogs, bookmark their favorite posts, and boost them to their followers. Sign up above to create a blog and join the fediverse.`
 	}
 	return ""
+}
+
+func getReaderSection(app *App) (*instanceContent, error) {
+	c, err := app.db.GetDynamicContent("reader")
+	if err != nil {
+		return nil, err
+	}
+	if c == nil {
+		c = &instanceContent{
+			ID:      "reader",
+			Type:    "section",
+			Content: defaultReaderBanner(app.cfg),
+			Updated: defaultPageUpdatedTime,
+		}
+	}
+	if !c.Title.Valid {
+		c.Title = defaultReaderTitle(app.cfg)
+	}
+	return c, nil
+}
+
+func defaultReaderTitle(cfg *config.Config) sql.NullString {
+	return sql.NullString{String: "Reader", Valid: true}
+}
+
+func defaultReaderBanner(cfg *config.Config) string {
+	return "Read the latest posts from " + cfg.App.SiteName + "."
 }

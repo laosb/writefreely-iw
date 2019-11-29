@@ -35,7 +35,6 @@
 		{{template "highlighting" .}}
 	</head>
 	<body id="post">
-
 		<header>
 			<h1 dir="{{.Direction}}"><a href="/">{{.SiteName}}</a></h1>
 			<nav>
@@ -49,10 +48,21 @@
 				{{ end }}
 			</nav>
 		</header>
+
+		{{if .Suspended}}
+			{{template "user-suspended"}}
+		{{end}}
 		
 		<article class="{{.Font}} h-entry">{{if .Title}}<h2 id="title" class="p-name">{{.Title}}</h2>{{end}}{{ if .IsPlainText }}<p id="post-body" class="e-content">{{.Content}}</p>{{ else }}<div id="post-body" class="e-content">{{.HTMLContent}}</div>{{ end }}</article>
 
-		<footer dir="ltr"><hr><nav><p style="font-size: 0.9em">{{localhtml "published with write.as" .Language}}</p></nav></footer>
+		{{/* <footer dir="ltr"><hr><nav><p style="font-size: 0.9em">{{localhtml "published with write.as" .Language}}</p></nav></footer> */}}
+		<footer dir="ltr"><hr><nav><p style="font-size: 0.9em" data-i18n="[html]footer.published_with">Published with <a href="https://imt.al">Immortal.Work</a></p></nav></footer>
+		
+		<script src="https://unpkg.com/i18next@18.0.1/dist/umd/i18next.min.js"></script>
+		<script src="https://unpkg.com/i18next-fetch-backend@2.2.0/dist/i18next-fetch-backend.umd.js"></script>
+		<script src="https://unpkg.com/i18next-browser-languagedetector@4.0.0/dist/umd/i18nextBrowserLanguageDetector.js"></script>
+		<script src="https://unpkg.com/loc-i18next@0.1.4/dist/umd/loc-i18next.min.js"></script>
+		<script src="{{.Host}}/js/i18n.js"></script>
 	</body>
 	
 	{{if .IsCode}}

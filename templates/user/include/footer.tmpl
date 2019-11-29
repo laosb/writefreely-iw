@@ -8,11 +8,15 @@
 		<hr />
 		<nav>
 			<a class="home" href="/">{{.SiteName}}</a>
-			<a href="/about">about</a>
-			{{if and (not .SingleUser) .LocalTimeline}}<a href="/read">reader</a>{{end}}
-			<a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide">writer's guide</a>
-			<a href="/privacy">privacy</a>
+			{{if not .SingleUser}}<a href="/about" data-i18n="footer.about">about</a>{{end}}
+			{{if and (not .SingleUser) .LocalTimeline}}<a href="/read" data-i18n="footer.reader">reader</a>{{end}}
+			<a href="https://writefreely.org/guide/{{.OfficialVersion}}" target="guide" data-i18n="footer.writer_guide">writer's guide</a>
+			{{if not .SingleUser}}<a href="/privacy" data-i18n="footer.privacy">privacy</a>{{end}}
+      {{/* {{if .WFModesty}}
+			<p style="font-size: 0.9em">powered by <a href="https://writefreely.org">writefreely</a></p>
+			{{else}}
 			<a href="https://writefreely.org">writefreely {{.Version}}</a>
+			{{end}} */}}
 		</nav>
 	</footer>
 
@@ -31,6 +35,12 @@
 	  })();
 	} catch (e) { /* ¯\_(ツ)_/¯ */ }
 	</script>
+	{{/* TODO: Don't duplicate this from base.tmpl. */}}
+	<script src="https://unpkg.com/i18next@18.0.1/dist/umd/i18next.min.js"></script>
+	<script src="https://unpkg.com/i18next-fetch-backend@2.2.0/dist/i18next-fetch-backend.umd.js"></script>
+	<script src="https://unpkg.com/i18next-browser-languagedetector@4.0.0/dist/umd/i18nextBrowserLanguageDetector.js"></script>
+	<script src="https://unpkg.com/loc-i18next@0.1.4/dist/umd/loc-i18next.min.js"></script>
+	<script src="{{.Host}}/js/i18n.js"></script>
 {{end}}
 {{define "body-end"}}</body>
 </html>{{end}}

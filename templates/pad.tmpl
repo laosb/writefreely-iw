@@ -13,57 +13,62 @@
 
 		<div id="overlay"></div>
 		
-		<textarea id="writer" placeholder="Write..." class="{{.Post.Font}}" autofocus>{{if .Post.Title}}# {{.Post.Title}}
+		<textarea id="writer" placeholder="Write..." class="{{.Post.Font}}" autofocus data-i18n="[placeholder]pad.write_placeholder">{{if .Post.Title}}# {{.Post.Title}}
 
 {{end}}{{.Post.Content}}</textarea>
 		
 		<header id="tools">
 			<div id="clip">
-				{{if not .SingleUser}}<h1><a href="/me/c/" title="View blogs"><img class="ic-24dp" src="/img/ic_blogs_dark@2x.png" /></a></h1>{{end}}
+				{{if not .SingleUser}}<h1><a href="/me/c/" title="View blogs" data-i18n="[title]pad.view_blogs"><img class="ic-24dp" src="/img/ic_blogs_dark@2x.png" /></a></h1>{{end}}
 				<nav id="target" {{if .SingleUser}}style="margin-left:0"{{end}}><ul>
-						{{if .Editing}}<li>{{if .EditCollection}}<a href="{{.EditCollection.CanonicalURL}}">{{.EditCollection.Title}}</a>{{else}}<a>Draft</a>{{end}}</li>
-						{{else}}<li><a id="publish-to"><span id="target-name">Draft</span> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" /></a>
+						{{if .Editing}}<li>{{if .EditCollection}}<a href="{{.EditCollection.CanonicalURL}}">{{.EditCollection.Title}}</a>{{else}}<a data-i18n="pad.draft">Draft</a>{{end}}</li>
+						{{else}}<li><a id="publish-to"><span id="target-name" data-i18n="pad.draft">Draft</span> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" /></a>
 						<ul>
-							<li class="menu-heading">Publish to...</li>
-							<li class="target selected" id="anonymous"><a href="#anonymous"><i class="material-icons md-18">description</i> <em>Draft</em></a></li>
-							{{if .Blogs}}{{range .Blogs}}
-							<li class="target" id="blog-{{.Alias}}"><a href="#{{.Alias}}"><i class="material-icons md-18">public</i> {{if .Title}}{{.Title}}{{else}}{{.Alias}}{{end}}</a></li>
+							<li class="menu-heading" data-i18n="pad.publish_to">Publish to...</li>
+							{{if .Blogs}}{{range $idx, $el := .Blogs}}
+								<li class="target{{if eq $idx 0}} selected{{end}}" id="blog-{{$el.Alias}}"><a href="#{{$el.Alias}}"><i class="material-icons md-18">public</i> {{if $el.Title}}{{$el.Title}}{{else}}{{$el.Alias}}{{end}}</a></li>
 							{{end}}{{end}}
+							<li class="target" id="blog-anonymous"><a href="#anonymous"><i class="material-icons md-18">description</i> <em data-i18n="pad.draft">Draft</em></a></li>
 							<li id="user-separator" class="separator"><hr /></li>
 						{{ if .SingleUser }}
-							<li><a href="/"><i class="material-icons md-18">launch</i> View Blog</a></li>
-							<li><a href="/me/c/{{.Username}}"><i class="material-icons md-18">palette</i> Customize</a></li>
-							<li><a href="/me/c/{{.Username}}/stats"><i class="material-icons md-18">trending_up</i> Stats</a></li>
+							<li><a href="/"><i class="material-icons md-18">launch</i>&nbsp;<span data-i18n="header.view_blog">View Blog</span></a></li>
+							<li><a href="/me/c/{{.Username}}"><i class="material-icons md-18">palette</i>&nbsp;<span data-i18n="header.customize">Customize</span></a></li>
+							<li><a href="/me/c/{{.Username}}/stats"><i class="material-icons md-18">trending_up</i>&nbsp;<span data-i18n="header.stats">Stats</span></a></li>
 						{{ else }}
-							<li><a href="/me/c/"><i class="material-icons md-18">library_books</i> View Blogs</a></li>
+							<li><a href="/me/c/"><i class="material-icons md-18">library_books</i>&nbsp;<span data-i18n="pad.view_blogs">View Blogs</span></a></li>
 						{{ end }}
-							<li><a href="/me/posts/"><i class="material-icons md-18">view_list</i> View Drafts</a></li>
-							<li><a href="/me/logout"><i class="material-icons md-18">power_settings_new</i>  Log out</a></li>
+							<li><a href="/me/posts/"><i class="material-icons md-18">view_list</i>&nbsp;<span data-i18n="pad.view_drafts">View Drafts</span></a></li>
+							<li><a href="/me/logout"><i class="material-icons md-18">power_settings_new</i>&nbsp;<span data-i18n="common.logout">Log out</span></a></li>
 						</ul>
 					</li>{{end}}
 				</ul></nav>
 				<nav id="font-picker" class="if-room room-3 hidden" style="margin-left:-1em"><ul>
 						<li><a href="#" id="" onclick="return false"><img class="ic-24dp" src="/img/ic_font_dark@2x.png" /> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" /></a>
 						<ul style="text-align: center">
-							<li class="menu-heading">Font</li>
-							<li class="selected"><a class="font norm" href="#norm">Serif</a></li>
-							<li><a class="font sans" href="#sans">Sans-serif</a></li>
-							<li><a class="font wrap" href="#wrap">Monospace</a></li>
+							<li class="menu-heading" data-i18n="pad.font">Font</li>
+							<li class="selected"><a class="font norm" href="#norm" data-i18n="pad.fonts.serif">Serif</a></li>
+							<li><a class="font sans" href="#sans" data-i18n="pad.fonts.sans_serif">Sans-serif</a></li>
+							<li><a class="font wrap" href="#wrap" data-i18n="pad.fonts.monospace">Monospace</a></li>
 						</ul>
 					</li>
 				</ul></nav>
-				<span id="wc" class="hidden if-room room-4">0 words</span>
+				<span id="wc" class="hidden if-room room-4" data-i18n="pad.word_count" i18n-options="{ 'count': 0 }">0 words</span>
 			</div>
 			<noscript style="margin-left: 2em;"><strong>NOTE</strong>: for now, you'll need Javascript enabled to post.</noscript>
 			<div id="belt">
-				{{if .Editing}}<div class="tool hidden if-room"><a href="{{if .EditCollection}}{{.EditCollection.CanonicalURL}}{{.Post.Slug}}/edit/meta{{else}}/{{if .SingleUser}}d/{{end}}{{.Post.Id}}/meta{{end}}" title="Edit post metadata" id="edit-meta"><img class="ic-24dp" src="/img/ic_info_dark@2x.png" /></a></div>{{end}}
-				<div class="tool hidden if-room room-2"><a href="#theme" title="Toggle theme" id="toggle-theme"><img class="ic-24dp" src="/img/ic_brightness_dark@2x.png" /></a></div>
-				<div class="tool if-room room-1"><a href="{{if not .User}}/pad/posts{{else}}/me/posts/{{end}}" title="View posts" id="view-posts"><img class="ic-24dp" src="/img/ic_list_dark@2x.png" /></a></div>
-				<div class="tool"><a href="#publish" title="Publish" id="publish"><img class="ic-24dp" src="/img/ic_send_dark@2x.png" /></a></div>
+				{{if .Editing}}<div class="tool hidden if-room"><a href="{{if .EditCollection}}{{.EditCollection.CanonicalURL}}{{.Post.Slug}}/edit/meta{{else}}/{{if .SingleUser}}d/{{end}}{{.Post.Id}}/meta{{end}}" title="Edit post metadata" id="edit-meta" data-i18n="pad.edit_post_metadata"><img class="ic-24dp" src="/img/ic_info_dark@2x.png" /></a></div>{{end}}
+				<div class="tool hidden if-room room-2"><a href="#theme" title="Toggle theme" id="toggle-theme" data-i18n="[title]pad.toggle_theme"><img class="ic-24dp" src="/img/ic_brightness_dark@2x.png" /></a></div>
+				<div class="tool if-room room-1"><a href="{{if not .User}}/pad/posts{{else}}/me/posts/{{end}}" title="View posts" id="view-posts" data-i18n="[title]pad.view_posts"><img class="ic-24dp" src="/img/ic_list_dark@2x.png" /></a></div>
+				<div class="tool"><a href="#publish" title="Publish" id="publish" data-i18n="[title]pad.publish"><img class="ic-24dp" src="/img/ic_send_dark@2x.png" /></a></div>
 			</div>
 		</header>
 
 		<script src="/js/h.js"></script>
+		<script src="https://unpkg.com/i18next@18.0.1/dist/umd/i18next.min.js"></script>
+		<script src="https://unpkg.com/i18next-fetch-backend@2.2.0/dist/i18next-fetch-backend.umd.js"></script>
+		<script src="https://unpkg.com/i18next-browser-languagedetector@4.0.0/dist/umd/i18nextBrowserLanguageDetector.js"></script>
+		<script src="https://unpkg.com/loc-i18next@0.1.4/dist/umd/loc-i18next.min.js"></script>
+		<script src="{{.Host}}/js/i18n.js"></script>
 		<script>
 		function toggleTheme() {
 			var btns = Array.prototype.slice.call(document.getElementById('tools').querySelectorAll('a img'));
@@ -83,7 +88,8 @@
 			}
 			H.set('padTheme', newTheme);
 		}
-		if (H.get('padTheme', 'light') != 'light') {
+		var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+		if (H.get('padTheme', 'light') != 'light' || prefersDark) {
 			toggleTheme();
 		}
 		var $writer = H.getEl('writer');
@@ -95,7 +101,7 @@
 			if (val != '') {
 				words = $writer.el.value.trim().replace(/\s+/gi, ' ').split(' ').length;
 			}
-			$wc.el.innerText = words + " word" + (words != 1 ? "s" : "");
+			$wc.el.innerText = i18next.t('pad.word_count', { count: words });
 		};
 		var setButtonStates = function() {
 			if (!canPublish) {
@@ -131,11 +137,15 @@
 		{{else}}var canPublish = true;{{end}}
 		var publishing = false;
 		var justPublished = false;
-
+		var suspended = {{.Suspended}};
 		var publish = function(content, font) {
+			if (suspended === true) {
+				alert("Your account is silenced, so you can't publish or update posts.");
+				return;
+			}
 			{{if and (and .Post.Id (not .Post.Slug)) (not .User)}}
 			if (!token) {
-				alert("You don't have permission to update this post.");
+				alert(i18next.t('pad.no_permission') /* "You don't have permission to update this post." */);
 				return;
 			}
 			if ($btnPublish.el.className == 'disabled') {
@@ -228,7 +238,7 @@
 						{{end}}
 					} else {
 						$btnPublish.el.children[0].textContent = 'send';
-						alert("Failed to post. Please try again.");
+						alert(i18next.t('pad.failed_to_post') /* "Failed to post. Please try again." */);
 					}
 				}
 			}
@@ -278,7 +288,7 @@
 				document.getElementById('target-name').innerText = newText.join(' ');
 			});
 		}
-		var postTarget = H.get('postTarget', 'anonymous');
+		var postTarget = H.get('postTarget', '{{if .Blogs}}{{$blog := index .Blogs 0}}{{$blog.Alias}}{{else}}anonymous{{end}}');
 		if (location.hash != '') {
 			postTarget = location.hash.substring(1);
 			// TODO: pushState to /pad (or whatever the URL is) so we live on a clean URL

@@ -11,6 +11,7 @@
 package writefreely
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -39,6 +40,7 @@ import (
 	"github.com/writeas/writefreely/key"
 	"github.com/writeas/writefreely/migrations"
 	"github.com/writeas/writefreely/page"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 const (
@@ -54,7 +56,7 @@ var (
 	debugging bool
 
 	// Software version can be set from git env using -ldflags
-	softwareVer = "0.10.0"
+	softwareVer = "0.11.1"
 
 	// DEPRECATED VARS
 	isSingleUser bool
@@ -118,6 +120,8 @@ type Apper interface {
 	SaveConfig(*config.Config) error
 
 	LoadKeys() error
+
+	ReqLog(r *http.Request, status int, timeSince time.Duration) string
 }
 
 // App returns the App
@@ -177,8 +181,12 @@ func (app *App) LoadKeys() error {
 	return nil
 }
 
-// handleViewHome shows page at root path. Will be the Pad if logged in and the
-// catch-all landing page otherwise.
+func (app *App) ReqLog(r *http.Request, status int, timeSince time.Duration) string {
+	return fmt.Sprintf("\"%s %s\" %d %s \"%s\"", r.Method, r.RequestURI, status, timeSince, r.UserAgent())
+}
+
+// handleViewHome shows page at root path. It checks the configuration and
+// authentication state to show the correct page.
 func handleViewHome(app *App, w http.ResponseWriter, r *http.Request) error {
 	if app.cfg.App.SingleUser {
 		// Render blog index
@@ -190,6 +198,15 @@ func handleViewHome(app *App, w http.ResponseWriter, r *http.Request) error {
 	if !forceLanding {
 		// Show correct page based on user auth status and configured landing path
 		u := getUserSession(app, r)
+
+		if app.cfg.App.Chorus {
+			// This instance is focused on reading, so show Reader on home route if not
+			// private or a private-instance user is logged in.
+			if !app.cfg.App.Private || u != nil {
+				return viewLocalTimeline(app, w, r)
+			}
+		}
+
 		if u != nil {
 			// User is logged in, so show the Pad
 			return handleViewPad(app, w, r)
@@ -199,6 +216,12 @@ func handleViewHome(app *App, w http.ResponseWriter, r *http.Request) error {
 			return impart.HTTPError{http.StatusFound, land}
 		}
 	}
+
+	return handleViewLanding(app, w, r)
+}
+
+func handleViewLanding(app *App, w http.ResponseWriter, r *http.Request) error {
+	forceLanding := r.FormValue("landing") == "1"
 
 	p := struct {
 		page.StaticPage
@@ -217,14 +240,14 @@ func handleViewHome(app *App, w http.ResponseWriter, r *http.Request) error {
 		log.Error("unable to get landing banner: %v", err)
 		return impart.HTTPError{http.StatusInternalServerError, fmt.Sprintf("Could not get banner: %v", err)}
 	}
-	p.Banner = template.HTML(applyMarkdown([]byte(banner.Content), ""))
+	p.Banner = template.HTML(applyMarkdown([]byte(banner.Content), "", app.cfg))
 
 	content, err := getLandingBody(app)
 	if err != nil {
 		log.Error("unable to get landing content: %v", err)
 		return impart.HTTPError{http.StatusInternalServerError, fmt.Sprintf("Could not get content: %v", err)}
 	}
-	p.Content = template.HTML(applyMarkdown([]byte(content.Content), ""))
+	p.Content = template.HTML(applyMarkdown([]byte(content.Content), "", app.cfg))
 
 	// Get error messages
 	session, err := app.sessionStore.Get(r, cookieName)
@@ -272,7 +295,7 @@ func handleTemplatedPage(app *App, w http.ResponseWriter, r *http.Request, t *te
 			return err
 		}
 		p.ContentTitle = c.Title.String
-		p.Content = template.HTML(applyMarkdown([]byte(c.Content), ""))
+		p.Content = template.HTML(applyMarkdown([]byte(c.Content), "", app.cfg))
 		p.PlainContent = shortPostDescription(stripmd.Strip(c.Content))
 		if !c.Updated.IsZero() {
 			p.Updated = c.Updated.Format("January 2, 2006")
@@ -310,6 +333,8 @@ func pageForReq(app *App, r *http.Request) page.StaticPage {
 		u = getUserSession(app, r)
 		if u != nil {
 			p.Username = u.Username
+			p.IsAdmin = u != nil && u.IsAdmin()
+			p.CanInvite = canUserInvite(app.cfg, p.IsAdmin)
 		}
 	}
 	p.CanViewReader = !app.cfg.App.Private || u != nil
@@ -380,19 +405,55 @@ func Serve(app *App, r *mux.Router) {
 	}
 	var err error
 	if app.cfg.IsSecureStandalone() {
-		log.Info("Serving redirects on http://%s:80", bindAddress)
-		go func() {
-			err = http.ListenAndServe(
-				fmt.Sprintf("%s:80", bindAddress), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if app.cfg.Server.Autocert {
+			m := &autocert.Manager{
+				Prompt: autocert.AcceptTOS,
+				Cache:  autocert.DirCache(app.cfg.Server.TLSCertPath),
+			}
+			host, err := url.Parse(app.cfg.App.Host)
+			if err != nil {
+				log.Error("[WARNING] Unable to parse configured host! %s", err)
+				log.Error(`[WARNING] ALL hosts are allowed, which can open you to an attack where
+clients connect to a server by IP address and pretend to be asking for an
+incorrect host name, and cause you to reach the CA's rate limit for certificate
+requests. We recommend supplying a valid host name.`)
+				log.Info("Using autocert on ANY host")
+			} else {
+				log.Info("Using autocert on host %s", host.Host)
+				m.HostPolicy = autocert.HostWhitelist(host.Host)
+			}
+			s := &http.Server{
+				Addr:    ":https",
+				Handler: r,
+				TLSConfig: &tls.Config{
+					GetCertificate: m.GetCertificate,
+				},
+			}
+			s.SetKeepAlivesEnabled(false)
+
+			go func() {
+				log.Info("Serving redirects on http://%s:80", bindAddress)
+				err = http.ListenAndServe(":80", m.HTTPHandler(nil))
+				log.Error("Unable to start redirect server: %v", err)
+			}()
+
+			log.Info("Serving on https://%s:443", bindAddress)
+			log.Info("---")
+			err = s.ListenAndServeTLS("", "")
+		} else {
+			go func() {
+				log.Info("Serving redirects on http://%s:80", bindAddress)
+				err = http.ListenAndServe(fmt.Sprintf("%s:80", bindAddress), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					http.Redirect(w, r, app.cfg.App.Host, http.StatusMovedPermanently)
 				}))
-			log.Error("Unable to start redirect server: %v", err)
-		}()
+				log.Error("Unable to start redirect server: %v", err)
+			}()
 
-		log.Info("Serving on https://%s:443", bindAddress)
-		log.Info("---")
-		err = http.ListenAndServeTLS(
-			fmt.Sprintf("%s:443", bindAddress), app.cfg.Server.TLSCertPath, app.cfg.Server.TLSKeyPath, r)
+			log.Info("Serving on https://%s:443", bindAddress)
+			log.Info("Using manual certificates")
+			log.Info("---")
+			err = http.ListenAndServeTLS(fmt.Sprintf("%s:443", bindAddress), app.cfg.Server.TLSCertPath, app.cfg.Server.TLSKeyPath, r)
+		}
 	} else {
 		log.Info("Serving on http://%s:%d\n", bindAddress, app.cfg.Server.Port)
 		log.Info("---")
@@ -442,9 +503,14 @@ func ConnectToDatabase(app *App) error {
 	return nil
 }
 
+// FormatVersion constructs the version string for the application
+func FormatVersion() string {
+	return serverSoftware + " " + softwareVer
+}
+
 // OutputVersion prints out the version of the application.
 func OutputVersion() {
-	fmt.Println(serverSoftware + " " + softwareVer)
+	fmt.Println(FormatVersion())
 }
 
 // NewApp creates a new app instance.
@@ -507,7 +573,7 @@ func DoConfig(app *App, configSections string) {
 
 		// Create blog
 		log.Info("Creating user %s...\n", u.Username)
-		err = app.db.CreateUser(u, app.cfg.App.SiteName)
+		err = app.db.CreateUser(app.cfg, u, app.cfg.App.SiteName)
 		if err != nil {
 			log.Error("Unable to create user: %s", err)
 			os.Exit(1)
@@ -564,12 +630,12 @@ func CreateSchema(apper Apper) error {
 }
 
 // Migrate runs all necessary database migrations.
-func Migrate(app *App) error {
-	app.LoadConfig()
-	connectToDatabase(app)
-	defer shutdown(app)
+func Migrate(apper Apper) error {
+	apper.LoadConfig()
+	connectToDatabase(apper.App())
+	defer shutdown(apper.App())
 
-	err := migrations.Migrate(migrations.NewDatastore(app.db.DB, app.db.driverName))
+	err := migrations.Migrate(migrations.NewDatastore(apper.App().db.DB, apper.App().db.driverName))
 	if err != nil {
 		return fmt.Errorf("migrate: %s", err)
 	}
@@ -577,14 +643,14 @@ func Migrate(app *App) error {
 }
 
 // ResetPassword runs the interactive password reset process.
-func ResetPassword(app *App, username string) error {
+func ResetPassword(apper Apper, username string) error {
 	// Connect to the database
-	app.LoadConfig()
-	connectToDatabase(app)
-	defer shutdown(app)
+	apper.LoadConfig()
+	connectToDatabase(apper.App())
+	defer shutdown(apper.App())
 
 	// Fetch user
-	u, err := app.db.GetUserForAuth(username)
+	u, err := apper.App().db.GetUserForAuth(username)
 	if err != nil {
 		log.Error("Get user: %s", err)
 		os.Exit(1)
@@ -606,7 +672,7 @@ func ResetPassword(app *App, username string) error {
 
 	// Do the update
 	log.Info("Updating...")
-	err = adminResetPassword(app, u, newPass)
+	err = adminResetPassword(apper.App(), u, newPass)
 	if err != nil {
 		log.Error("%s", err)
 		os.Exit(1)
@@ -702,7 +768,7 @@ func CreateUser(apper Apper, username, password string, isAdmin bool) error {
 		userType = "admin"
 	}
 	log.Info("Creating %s %s...", userType, usernameDesc)
-	err = apper.App().db.CreateUser(u, desiredUsername)
+	err = apper.App().db.CreateUser(apper.App().Config(), u, desiredUsername)
 	if err != nil {
 		return fmt.Errorf("Unable to create user: %s", err)
 	}

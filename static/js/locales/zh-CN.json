@@ -1,0 +1,92 @@
+{
+  "common": {
+    "home": "首页",
+    "about": "关于",
+    "settings": "设置",
+    "anonymous": "匿名",
+    "reader": "阅读",
+    "sign_up": "注册",
+    "login": "登录",
+    "logout": "退出登录",
+    "my_posts": "我的文章",
+    "blogs": "博客",
+    "drafts": "草稿",
+    "new_post": "新建文章",
+    "posts": "文章"
+  },
+  "header": {
+    "dashboard": "仪表盘",
+    "admin_dashboard": "管理员仪表盘",
+    "account_settings": "帐户设置",
+    "invite_people": "邀请",
+    "blogs": "博客",
+    "drafts": "草稿",
+    "users": "帐户",
+    "pages": "页面",
+    "view_blog": "查看博客",
+    "return_to_editor": "返回编辑器",
+    "new_post": "新文章",
+    "customize": "自定义",
+    "stats": "统计",
+    "admin": "管理员",
+    "export": "导出"
+  },
+  "footer": {
+    "about": "关于",
+    "reader": "阅读",
+    "privacy": "隐私",
+    "writer_guide": "作者指南",
+    "source_code": "源代码",
+    "based_on_writefreely": "基于 WriteFreely ",
+    "published_with": "通过<a href=\"https://imt.al\">砚墨文房</a>发布"
+  },
+  "reader": {
+    "from": "来自 ",
+    "read_more": "阅读更多 ...",
+    "no_posts": "这里还没有文章。 OvO",
+    "older": "较旧的",
+    "newer": "更新的"
+  },
+  "articles": {
+    "drafts": "草稿",
+    "edit": "编辑",
+    "delete": "删除",
+    "move_tip": "将这篇文章移动到您的某一博客里",
+    "move_to_label": "移至...",
+    "publish_tip": "将这篇文章发布到博客「{{displayTitle}}」上",
+    "move_to": "移至 ",
+    "no_drafts": "您还没有草稿。",
+    "no_drafts_detail": "当您有了草稿，它们就会在这里显示。",
+    "no_drafts_detail_not_single": "在您的<a href=\"/me/c/\">博客</a>页面浏览您已发布在博客上的文章。",
+    "start_writing": "开始写作",
+    "unsynced_posts": "未同步的文章",
+    "blogs": "博客",
+    "new_post": "撰写文章",
+    "customize": "自定义",
+    "stats": "统计",
+    "blog_name": "博客名称",
+    "create_btn": "创建",
+    "new_blog": "创建博客"
+  },
+  "pad": {
+    "write_placeholder": "开始写作……",
+    "view_blogs": "浏览博客",
+    "view_drafts": "浏览草稿",
+    "view_posts": "浏览文章",
+    "draft": "草稿",
+    "publish_to": "发布到...",
+    "font": "字体",
+    "fonts": {
+      "serif": "宋体、衬线体",
+      "sans_serif": "黑体、无衬线体",
+      "monospace": "等宽字体"
+    },
+    "word_count": "{{count}} 词",
+    "word_count_plural": "{{count}} 词",
+    "edit_post_metadata": "编辑文章元数据",
+    "toggle_theme": "切换颜色主题",
+    "publish": "发布",
+    "no_permission": "您没有编辑这篇文章的权限。",
+    "failed_to_post": "保存文章失败。请稍后再试。"
+  }
+}

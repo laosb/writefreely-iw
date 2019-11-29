@@ -1,3 +1,76 @@
+{{define "user-navigation"}}
+	<header class="{{if .SingleUser}}singleuser{{else}}multiuser{{end}}">
+		{{if .SingleUser}}
+		<nav id="user-nav">
+			<nav class="dropdown-nav">
+				<ul><li><a href="/" title="View blog" class="title" data-i18n="[title]header.view_blog">{{.SiteName}}</a> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" />
+					<ul>
+						<li><a href="/me/c/{{.Username}}" data-i18n="header.customize">Customize</a></li>
+						<li><a href="/me/c/{{.Username}}/stats" data-i18n="header.stats">Stats</a></li>
+						<li class="separator"><hr /></li>
+						{{if .IsAdmin}}<li><a href="/admin" data-i18n="header.admin">Admin</a></li>{{end}}
+						<li><a href="/me/settings" data-i18n="common.settings">Settings</a></li>
+						<li><a href="/me/export" data-i18n="header.export">Export</a></li>
+						<li class="separator"><hr /></li>
+						<li><a href="/me/logout" data-i18n="common.logout">Log out</a></li>
+					</ul></li>
+				</ul>
+			</nav>
+			<nav class="tabs">
+				<a href="/me/posts/"{{if eq .Path "/me/posts/"}} class="selected"{{end}} data-i18n="header.drafts">Drafts</a>
+				<a href="/me/new" data-i18n="header.new_post">New Post</a>
+			</nav>
+		</nav>
+		{{else}}
+		<nav id="full-nav">
+			<div class="left-side">
+				<h1><a href="/" title="Return to editor" data-i18n="[title]header.return_to_editor">{{.SiteName}}</a></h1>
+			</div>
+		<nav id="user-nav">
+			{{if .Username}}
+			<nav class="dropdown-nav">
+				<ul><li><a>{{.Username}}</a> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" /><ul>
+						{{if .IsAdmin}}<li><a href="/admin" data-i18n="header.admin_dashboard">Admin dashboard</a></li>{{end}}
+						<li><a href="/me/settings" data-i18n="header.account_settings">Account settings</a></li>
+						<li><a href="/me/export" data-i18n="header.export">Export</a></li>
+						{{if .CanInvite}}<li><a href="/me/invites" data-i18n="header.invite_people">Invite people</a></li>{{end}}
+						<li class="separator"><hr /></li>
+						<li><a href="/me/logout" data-i18n="common.logout">Log out</a></li>
+					</ul></li>
+				</ul>
+			</nav>
+			{{end}}
+			<nav class="tabs">
+				{{if .SimpleNav}}
+					{{ if not .SingleUser }}
+					{{if and (and .LocalTimeline .CanViewReader) .Chorus}}<a href="/"{{if eq .Path "/"}} class="selected"{{end}} data-i18n="common.home">Home</a>{{end}}
+					{{ end }}
+					<a href="/about" data-i18n="common.about">About</a>
+					{{ if not .SingleUser }}
+						{{ if .Username }}
+					{{if gt .MaxBlogs 1}}<a href="/me/c/"{{if eq .Path "/me/c/"}} class="selected"{{end}} data-i18n="common.blogs">Blogs</a>{{end}}
+					{{if and .Chorus (eq .MaxBlogs 1)}}<a href="/{{.Username}}/"{{if eq .Path (printf "/%s/" .Username)}} class="selected"{{end}} data-i18n="common.my_posts">My Posts</a>{{end}}
+					{{if not .DisableDrafts}}<a href="/me/posts/"{{if eq .Path "/me/posts/"}} class="selected"{{end}} data-i18n="common.drafts">Drafts</a>{{end}}
+						{{ end }}
+					{{if and (and .LocalTimeline .CanViewReader) (not .Chorus)}}<a href="/read" data-i18n="common.reader">Reader</a>{{end}}
+					{{if and (and (and .Chorus .OpenRegistration) (not .Username)) (or (not .Private) (ne .Landing ""))}}<a href="/signup"{{if eq .Path "/signup"}} class="selected"{{end}} data-i18n="common.sign_up">Sign up</a>{{end}}
+					{{if .Username}}<a href="/me/logout" data-i18n="common.logout">Log out</a>{{else}}<a href="/login" data-i18n="common.login">Log in</a>{{end}}
+					{{ end }}
+				{{else}}
+					<a href="/me/c/"{{if eq .Path "/me/c/"}} class="selected"{{end}} data-i18n="common.blogs">Blogs</a>
+					{{if not .DisableDrafts}}<a href="/me/posts/"{{if eq .Path "/me/posts/"}} class="selected"{{end}} data-i18n="common.drafts">Drafts</a>{{end}}
+					{{if and (and .LocalTimeline .CanViewReader) (not .Chorus)}}<a href="/read" data-i18n="common.reader">Reader</a>{{end}}
+				{{end}}
+			</nav>
+		</nav>
+		{{if .Chorus}}{{if .Username}}<div class="right-side">
+					<a class="simple-btn" href="/new" data-i18n="common.new_post">New Post</a>
+				</div>{{end}}
+			</nav>
+		{{end}}
+		{{end}}
+	</header>
+{{end}}
 {{define "header"}}<!DOCTYPE HTML>
 <html>
 <head>
@@ -15,60 +88,18 @@
 	<link rel="apple-touch-icon" sizes="180x180" href="/img/touch-icon-180.png">
 </head>
 <body id="me">
-	<header{{if .SingleUser}} class="singleuser"{{end}}>
-		{{if .SingleUser}}
-		<nav id="user-nav">
-			<nav class="dropdown-nav">
-				<ul><li><a href="/" title="View blog" class="title">{{.SiteName}}</a> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" />
-					<ul>
-						<li><a href="/me/c/{{.Username}}">Customize</a></li>
-						<li><a href="/me/c/{{.Username}}/stats">Stats</a></li>
-						<li class="separator"><hr /></li>
-						{{if .IsAdmin}}<li><a href="/admin">Admin</a></li>{{end}}
-						<li><a href="/me/settings">Settings</a></li>
-						<li><a href="/me/export">Export</a></li>
-						<li class="separator"><hr /></li>
-						<li><a href="/me/logout">Log out</a></li>
-					</ul></li>
-				</ul>
-			</nav>
-			<nav class="tabs">
-				<a href="/me/posts/"{{if eq .Path "/me/posts/"}} class="selected"{{end}}>Drafts</a>
-				<a href="/me/new">New Post</a>
-			</nav>
-		</nav>
-		{{else}}
-		<h1><a href="/" title="Return to editor">{{.SiteName}}</a></h1>
-		<nav id="user-nav">
-			<nav class="dropdown-nav">
-				<ul><li><a>{{.Username}}</a> <img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" /><ul>
-						{{if .IsAdmin}}<li><a href="/admin">Admin dashboard</a></li>{{end}}
-						<li><a href="/me/settings">Account settings</a></li>
-						<li><a href="/me/export">Export</a></li>
-						{{if .CanInvite}}<li><a href="/me/invites">Invite people</a></li>{{end}}
-						<li class="separator"><hr /></li>
-						<li><a href="/me/logout">Log out</a></li>
-					</ul></li>
-				</ul>
-			</nav>
-			<nav class="tabs">
-				<a href="/me/c/"{{if eq .Path "/me/c/"}} class="selected"{{end}}>Blogs</a>
-				<a href="/me/posts/"{{if eq .Path "/me/posts/"}} class="selected"{{end}}>Drafts</a>
-			</nav>
-		</nav>
-		{{end}}
-	</header>
+	{{template "user-navigation" .}}
 	<div id="official-writing">
 {{end}}
 
 {{define "admin-header"}}
 <header class="admin">
-	<h1>Admin</h1>
+	<h1 data-i18n="header.admin">Admin</h1>
 	<nav id="admin">
-		<a href="/admin" {{if eq .Path "/admin"}}class="selected"{{end}}>Dashboard</a>
+		<a href="/admin" {{if eq .Path "/admin"}}class="selected"{{end}} data-i18n="header.dashboard">Dashboard</a>
 		{{if not .SingleUser}}
-		<a href="/admin/users" {{if eq .Path "/admin/users"}}class="selected"{{end}}>Users</a>
-		<a href="/admin/pages" {{if eq .Path "/admin/pages"}}class="selected"{{end}}>Pages</a>
+		<a href="/admin/users" {{if eq .Path "/admin/users"}}class="selected"{{end}} data-i18n="header.users">Users</a>
+		<a href="/admin/pages" {{if eq .Path "/admin/pages"}}class="selected"{{end}} data-i18n="header.pages">Pages</a>
 		{{end}}
 	</nav>
 </header>

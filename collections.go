@@ -31,6 +31,7 @@ import (
 	"github.com/writeas/web-core/log"
 	waposts "github.com/writeas/web-core/posts"
 	"github.com/writeas/writefreely/author"
+	"github.com/writeas/writefreely/config"
 	"github.com/writeas/writefreely/page"
 )
 
@@ -70,6 +71,7 @@ type (
 		CurrentPage int
 		TotalPages  int
 		Format      *CollectionFormat
+		Suspended   bool
 	}
 	SubmittedCollection struct {
 		// Data used for updating a given collection
@@ -125,6 +127,21 @@ const (
 	CollPrivate
 	CollProtected
 )
+
+var collVisibilityStrings = map[string]collVisibility{
+	"unlisted":  CollUnlisted,
+	"public":    CollPublic,
+	"private":   CollPrivate,
+	"protected": CollProtected,
+}
+
+func defaultVisibility(cfg *config.Config) collVisibility {
+	vis, ok := collVisibilityStrings[cfg.App.DefaultVisibility]
+	if !ok {
+		vis = CollUnlisted
+	}
+	return vis
+}
 
 func (cf *CollectionFormat) Ascending() bool {
 	return cf.Format == "novel"
@@ -211,6 +228,10 @@ func (c *Collection) DisplayCanonicalURL() string {
 }
 
 func (c *Collection) RedirectingCanonicalURL(isRedir bool) string {
+	if c.hostName == "" {
+		// If this is true, the human programmers screwed up. So ask for a bug report and fail, fail, fail
+		log.Error("[PROGRAMMER ERROR] WARNING: Collection.hostName is empty! Federation and many other things will fail! If you're seeing this in the wild, please report this bug and let us know what you were doing just before this: https://github.com/writeas/writefreely/issues/new?template=bug_report.md")
+	}
 	if isSingleUser {
 		return c.hostName + "/"
 	}
@@ -318,7 +339,7 @@ func (c *Collection) RenderMathJax() bool {
 }
 
 func newCollection(app *App, w http.ResponseWriter, r *http.Request) error {
-	reqJSON := IsJSON(r.Header.Get("Content-Type"))
+	reqJSON := IsJSON(r)
 	alias := r.FormValue("alias")
 	title := r.FormValue("title")
 
@@ -358,36 +379,41 @@ func newCollection(app *App, w http.ResponseWriter, r *http.Request) error {
 		return impart.HTTPError{http.StatusBadRequest, fmt.Sprintf("Parameter(s) %srequired.", missingParams)}
 	}
 
+	var userID int64
+	var err error
 	if reqJSON && !c.Web {
 		accessToken = r.Header.Get("Authorization")
 		if accessToken == "" {
 			return ErrNoAccessToken
+		}
+		userID = app.db.GetUserID(accessToken)
+		if userID == -1 {
+			return ErrBadAccessToken
 		}
 	} else {
 		u = getUserSession(app, r)
 		if u == nil {
 			return ErrNotLoggedIn
 		}
+		userID = u.ID
+	}
+	suspended, err := app.db.IsUserSuspended(userID)
+	if err != nil {
+		log.Error("new collection: %v", err)
+		return ErrInternalGeneral
+	}
+	if suspended {
+		return ErrUserSuspended
 	}
 
 	if !author.IsValidUsername(app.cfg, c.Alias) {
 		return impart.HTTPError{http.StatusPreconditionFailed, "Collection alias isn't valid."}
 	}
 
-	var coll *Collection
-	var err error
-	if accessToken != "" {
-		coll, err = app.db.CreateCollectionFromToken(c.Alias, c.Title, accessToken)
-		if err != nil {
-			// TODO: handle this
-			return err
-		}
-	} else {
-		coll, err = app.db.CreateCollection(c.Alias, c.Title, u.ID)
-		if err != nil {
-			// TODO: handle this
-			return err
-		}
+	coll, err := app.db.CreateCollection(app.cfg, c.Alias, c.Title, userID)
+	if err != nil {
+		// TODO: handle this
+		return err
 	}
 
 	res := &CollectionObj{Collection: *coll}
@@ -438,7 +464,7 @@ func fetchCollection(app *App, w http.ResponseWriter, r *http.Request) error {
 	c.hostName = app.cfg.App.Host
 
 	// Redirect users who aren't requesting JSON
-	reqJSON := IsJSON(r.Header.Get("Content-Type"))
+	reqJSON := IsJSON(r)
 	if !reqJSON {
 		return impart.HTTPError{http.StatusFound, c.CanonicalURL()}
 	}
@@ -461,6 +487,7 @@ func fetchCollection(app *App, w http.ResponseWriter, r *http.Request) error {
 			res.Owner = u
 		}
 	}
+	// TODO: check suspended
 	app.db.GetPostsCount(res, isCollOwner)
 	// Strip non-public information
 	res.Collection.ForPublic()
@@ -496,7 +523,7 @@ func fetchCollectionPosts(app *App, w http.ResponseWriter, r *http.Request) erro
 		}
 	}
 
-	posts, err := app.db.GetPosts(c, page, isCollOwner, false, false)
+	posts, err := app.db.GetPosts(app.cfg, c, page, isCollOwner, false, false)
 	if err != nil {
 		return err
 	}
@@ -525,6 +552,8 @@ type CollectionPage struct {
 	Username       string
 	Collections    *[]Collection
 	PinnedPosts    *[]PublicPost
+	IsAdmin        bool
+	CanInvite      bool
 }
 
 func (c *CollectionObj) ScriptDisplay() template.JS {
@@ -707,6 +736,13 @@ func handleViewCollection(app *App, w http.ResponseWriter, r *http.Request) erro
 	if c == nil || err != nil {
 		return err
 	}
+	c.hostName = app.cfg.App.Host
+
+	suspended, err := app.db.IsUserSuspended(c.OwnerID)
+	if err != nil {
+		log.Error("view collection: %v", err)
+		return ErrInternalGeneral
+	}
 
 	// Serve ActivityStreams data now, if requested
 	if strings.Contains(r.Header.Get("Accept"), "application/activity+json") {
@@ -728,7 +764,7 @@ func handleViewCollection(app *App, w http.ResponseWriter, r *http.Request) erro
 		return impart.HTTPError{http.StatusFound, redirURL}
 	}
 
-	coll.Posts, _ = app.db.GetPosts(c, page, cr.isCollOwner, false, false)
+	coll.Posts, _ = app.db.GetPosts(app.cfg, c, page, cr.isCollOwner, false, false)
 
 	// Serve collection
 	displayPage := CollectionPage{
@@ -737,6 +773,8 @@ func handleViewCollection(app *App, w http.ResponseWriter, r *http.Request) erro
 		IsCustomDomain:    cr.isCustomDomain,
 		IsWelcome:         r.FormValue("greeting") != "",
 	}
+	displayPage.IsAdmin = u != nil && u.IsAdmin()
+	displayPage.CanInvite = canUserInvite(app.cfg, displayPage.IsAdmin)
 	var owner *User
 	if u != nil {
 		displayPage.Username = u.Username
@@ -746,14 +784,15 @@ func handleViewCollection(app *App, w http.ResponseWriter, r *http.Request) erro
 			owner = u
 			displayPage.CanPin = true
 
-			pubColls, err := app.db.GetPublishableCollections(owner)
+			pubColls, err := app.db.GetPublishableCollections(owner, app.cfg.App.Host)
 			if err != nil {
 				log.Error("unable to fetch collections: %v", err)
 			}
 			displayPage.Collections = pubColls
 		}
 	}
-	if owner == nil {
+	isOwner := owner != nil
+	if !isOwner {
 		// Current user doesn't own collection; retrieve owner information
 		owner, err = app.db.GetUserByID(coll.OwnerID)
 		if err != nil {
@@ -761,14 +800,22 @@ func handleViewCollection(app *App, w http.ResponseWriter, r *http.Request) erro
 			log.Error("Error getting user for collection: %v", err)
 		}
 	}
+	if !isOwner && suspended {
+		return ErrCollectionNotFound
+	}
+	displayPage.Suspended = isOwner && suspended
 	displayPage.Owner = owner
 	coll.Owner = displayPage.Owner
 
 	// Add more data
 	// TODO: fix this mess of collections inside collections
-	displayPage.PinnedPosts, _ = app.db.GetPinnedPosts(coll.CollectionObj)
+	displayPage.PinnedPosts, _ = app.db.GetPinnedPosts(coll.CollectionObj, isOwner)
 
-	err = templates["collection"].ExecuteTemplate(w, "collection", displayPage)
+	collTmpl := "collection"
+	if app.cfg.App.Chorus {
+		collTmpl = "chorus-collection"
+	}
+	err = templates[collTmpl].ExecuteTemplate(w, "collection", displayPage)
 	if err != nil {
 		log.Error("Unable to render collection index: %v", err)
 	}
@@ -817,7 +864,7 @@ func handleViewCollectionTag(app *App, w http.ResponseWriter, r *http.Request) e
 
 	coll := newDisplayCollection(c, cr, page)
 
-	coll.Posts, _ = app.db.GetPostsTagged(c, tag, page, cr.isCollOwner)
+	coll.Posts, _ = app.db.GetPostsTagged(app.cfg, c, tag, page, cr.isCollOwner)
 	if coll.Posts != nil && len(*coll.Posts) == 0 {
 		return ErrCollectionPageNotFound
 	}
@@ -843,14 +890,15 @@ func handleViewCollectionTag(app *App, w http.ResponseWriter, r *http.Request) e
 			owner = u
 			displayPage.CanPin = true
 
-			pubColls, err := app.db.GetPublishableCollections(owner)
+			pubColls, err := app.db.GetPublishableCollections(owner, app.cfg.App.Host)
 			if err != nil {
 				log.Error("unable to fetch collections: %v", err)
 			}
 			displayPage.Collections = pubColls
 		}
 	}
-	if owner == nil {
+	isOwner := owner != nil
+	if !isOwner {
 		// Current user doesn't own collection; retrieve owner information
 		owner, err = app.db.GetUserByID(coll.OwnerID)
 		if err != nil {
@@ -858,11 +906,15 @@ func handleViewCollectionTag(app *App, w http.ResponseWriter, r *http.Request) e
 			log.Error("Error getting user for collection: %v", err)
 		}
 	}
+	if !isOwner && u.IsSilenced() {
+		return ErrCollectionNotFound
+	}
+	displayPage.Suspended = u.IsSilenced()
 	displayPage.Owner = owner
 	coll.Owner = displayPage.Owner
 	// Add more data
 	// TODO: fix this mess of collections inside collections
-	displayPage.PinnedPosts, _ = app.db.GetPinnedPosts(coll.CollectionObj)
+	displayPage.PinnedPosts, _ = app.db.GetPinnedPosts(coll.CollectionObj, isOwner)
 
 	err = templates["collection-tags"].ExecuteTemplate(w, "collection-tags", displayPage)
 	if err != nil {
@@ -891,16 +943,15 @@ func handleCollectionPostRedirect(app *App, w http.ResponseWriter, r *http.Reque
 }
 
 func existingCollection(app *App, w http.ResponseWriter, r *http.Request) error {
-	reqJSON := IsJSON(r.Header.Get("Content-Type"))
+	reqJSON := IsJSON(r)
 	vars := mux.Vars(r)
 	collAlias := vars["alias"]
 	isWeb := r.FormValue("web") == "1"
 
-	var u *User
+	u := &User{}
 	if reqJSON && !isWeb {
 		// Ensure an access token was given
 		accessToken := r.Header.Get("Authorization")
-		u = &User{}
 		u.ID = app.db.GetUserID(accessToken)
 		if u.ID == -1 {
 			return ErrBadAccessToken
@@ -910,6 +961,16 @@ func existingCollection(app *App, w http.ResponseWriter, r *http.Request) error 
 		if u == nil {
 			return ErrNotLoggedIn
 		}
+	}
+
+	suspended, err := app.db.IsUserSuspended(u.ID)
+	if err != nil {
+		log.Error("existing collection: %v", err)
+		return ErrInternalGeneral
+	}
+
+	if suspended {
+		return ErrUserSuspended
 	}
 
 	if r.Method == "DELETE" {
@@ -924,7 +985,6 @@ func existingCollection(app *App, w http.ResponseWriter, r *http.Request) error 
 	}
 
 	c := SubmittedCollection{OwnerID: uint64(u.ID)}
-	var err error
 
 	if reqJSON {
 		// Decode JSON request

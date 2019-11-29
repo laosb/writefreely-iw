@@ -7,15 +7,18 @@
 	{{range .Flashes}}<li class="urgent">{{.}}</li>{{end}}
 </ul>{{end}}
 
-<h2>blogs</h2>
+{{if .Suspended}}
+	{{template "user-suspended"}}
+{{end}}
+<h2 data-i18n="articles.blogs">blogs</h2>
 <ul class="atoms collections">
 	{{range $i, $el := .Collections}}<li class="collection"><h3>
 		<a class="title" href="/{{.Alias}}/">{{if .Title}}{{.Title}}{{else}}{{.Alias}}{{end}}</a>
 	</h3> 
 	<h4>
-		<a class="action new-post" href="/#{{.Alias}}">new post</a>
-		<a class="action" href="/me/c/{{.Alias}}">customize</a>
-		<a class="action" href="/me/c/{{.Alias}}/stats">stats</a>
+		<a class="action new-post" href="{{if $.Chorus}}/new{{else}}/{{end}}#{{.Alias}}" data-i18n="articles.new_post">new post</a>
+		<a class="action" href="/me/c/{{.Alias}}" data-i18n="articles.customize">customize</a>
+		<a class="action" href="/me/c/{{.Alias}}/stats" data-i18n="articles.stats">stats</a>
 	</h4>
 	{{if .Description}}<p class="description">{{.Description}}</p>{{end}}
 </li>{{end}}
@@ -23,15 +26,15 @@
 		{{if not .NewBlogsDisabled}}
 		<form method="POST" action="/api/collections" id="new-collection-form" onsubmit="return createCollection()">
 			<h4>
-				<input type="text" name="title" placeholder="Blog name" id="blog-name">
+				<input type="text" name="title" placeholder="Blog name" id="blog-name" data-i18n="[placeholder]articles.blog_name">
 				<input type="hidden" name="web" value="true" />
-				<input type="submit" value="Create" id="create-collection-btn">
+				<input type="submit" value="Create" id="create-collection-btn" data-i18n="[value]articles.create_btn">
 			</h4>
 		</form>
 		{{end}}
 	</li>
 </ul>
-{{if not .NewBlogsDisabled}}<p style="margin-top:0"><a id="new-collection" href="#new-collection">New blog</a></p>{{end}}
+{{if not .NewBlogsDisabled}}<p style="margin-top:0"><a id="new-collection" href="#new-collection" data-i18n="articles.new_blog">New blog</a></p>{{end}}
 
 </div>
 

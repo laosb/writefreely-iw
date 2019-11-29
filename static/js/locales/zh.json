@@ -1,0 +1,92 @@
+{
+  "common": {
+    "home": "主頁",
+    "about": "關於",
+    "settings": "設定",
+    "anonymous": "匿名",
+    "reader": "閱讀",
+    "sign_up": "註冊",
+    "login": "登入",
+    "logout": "登出",
+    "my_posts": "我的文章",
+    "blogs": "網誌",
+    "drafts": "草稿",
+    "new_post": "新文章",
+    "posts": "文章"
+  },
+  "header": {
+    "dashboard": "儀錶板",
+    "admin_dashboard": "管理員儀錶板",
+    "account_settings": "帳戶設定",
+    "invite_people": "邀請",
+    "blogs": "網誌",
+    "drafts": "草稿",
+    "users": "帳戶",
+    "pages": "頁面",
+    "view_blog": "檢視網誌",
+    "return_to_editor": "返回編輯器",
+    "new_post": "新文章",
+    "customize": "自訂",
+    "stats": "統計",
+    "admin": "管理員",
+    "export": "匯出"
+  },
+  "footer": {
+    "about": "關於",
+    "reader": "閱讀",
+    "privacy": "隱私",
+    "writer_guide": "作者指南",
+    "source_code": "源代碼",
+    "based_on_writefreely": "基於 WriteFreely ",
+    "published_with": "透過<a href=\"https://imt.al\">硯墨文房</a>發表"
+  },
+  "reader": {
+    "from": "來自 ",
+    "read_more": "閱讀更多 ...",
+    "no_posts": "這裡還沒有文章。 OvO",
+    "older": "較舊的",
+    "newer": "更新的"
+  },
+  "articles": {
+    "drafts": "草稿",
+    "edit": "編輯",
+    "delete": "刪除",
+    "move_tip": "將這篇文章移動至您的某一網誌裡",
+    "move_to_label": "移至...",
+    "publish_tip": "將這篇文章發表到網誌「{{displayTitle}}」上",
+    "move_to": "移至 ",
+    "no_drafts": "您還沒有草稿。",
+    "no_drafts_detail": "當您有了草稿，它們就會在此顯現。",
+    "no_drafts_detail_not_single": "在您的<a href=\"/me/c/\">網誌</a>頁面查詢您已發表在網誌上的文章。",
+    "start_writing": "開始寫作",
+    "unsynced_posts": "未同步的文章",
+    "blogs": "網誌",
+    "new_post": "撰寫文章",
+    "customize": "自訂",
+    "stats": "統計",
+    "blog_name": "網誌名稱",
+    "create_btn": "建立",
+    "new_blog": "建立網誌"
+  },
+  "pad": {
+    "write_placeholder": "開始寫作⋯⋯",
+    "view_blogs": "檢視網誌",
+    "view_drafts": "檢視草稿",
+    "view_posts": "檢視文章",
+    "draft": "草稿",
+    "publish_to": "發表至...",
+    "font": "字型",
+    "fonts": {
+      "serif": "宋體、對線字",
+      "sans_serif": "黑體、平滑字",
+      "monospace": "等寬字"
+    },
+    "word_count": "{{count}} 詞",
+    "word_count_plural": "{{count}} 詞",
+    "edit_post_metadata": "編輯文章元數據",
+    "toggle_theme": "切換顏色主題",
+    "publish": "發表",
+    "no_permission": "您無權編輯這篇文章。",
+    "failed_to_post": "保存文章失敗。請稍後再試。"
+  }
+}

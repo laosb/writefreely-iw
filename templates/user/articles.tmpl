@@ -6,40 +6,43 @@
 {{if .Flashes}}<ul class="errors">
 	{{range .Flashes}}<li class="urgent">{{.}}</li>{{end}}
 </ul>{{end}}
+{{if .Suspended}}
+	{{template "user-suspended"}}
+{{end}}
 
-<h2 id="posts-header">drafts</h2>
+<h2 id="posts-header" data-i18n="articles.drafts">drafts</h2>
 
 {{ if .AnonymousPosts }}<div class="atoms posts">
 	{{ range $el := .AnonymousPosts }}<div id="post-{{.ID}}" class="post">
 		<h3><a href="/{{if $.SingleUser}}d/{{end}}{{.ID}}" itemprop="url">{{.DisplayTitle}}</a></h3>
 		<h4>
 			<date datetime="{{.Created}}" pubdate itemprop="datePublished" content="{{.Created}}">{{.DisplayDate}}</date>
-			<a class="action" href="/{{if $.SingleUser}}d/{{end}}{{.ID}}/edit">edit</a>
-			<a class="delete action" href="/{{.ID}}" onclick="delPost(event, '{{.ID}}', true)">delete</a>
+			<a class="action" href="/{{if $.SingleUser}}d/{{end}}{{.ID}}/edit" data-i18n="articles.edit">edit</a>
+			<a class="delete action" href="/{{.ID}}" onclick="delPost(event, '{{.ID}}', true)" data-i18n="articles.delete">delete</a>
 			{{ if $.Collections }}
 			{{if gt (len $.Collections) 1}}<div class="action flat-select">
-				<select id="move-{{.ID}}" onchange="postActions.multiMove(this, '{{.ID}}', {{if $.SingleUser}}true{{else}}false{{end}})" title="Move this post to one of your blogs">
+				<select id="move-{{.ID}}" onchange="postActions.multiMove(this, '{{.ID}}', {{if $.SingleUser}}true{{else}}false{{end}})" title="Move this post to one of your blogs" data-i18n="[title]articles.move_tip">
 					<option style="display:none"></option>
 					{{range $.Collections}}<option value="{{.Alias}}">{{.DisplayTitle}}</option>{{end}}
 				</select>
-				<label for="move-{{.ID}}">move to...</label>
+				<label for="move-{{.ID}}" data-i18n="articles.move_to_label">move to...</label>
 				<img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" />
 			</div>{{else}}
 			{{range $.Collections}}
-			<a class="action" href="/{{$el.ID}}" title="Publish this post to your blog '{{.DisplayTitle}}'" onclick="postActions.move(this, '{{$el.ID}}', '{{.Alias}}', {{if $.SingleUser}}true{{else}}false{{end}});return false">move to {{.DisplayTitle}}</a>
+			<a class="action" href="/{{$el.ID}}" title="Publish this post to your blog '{{.DisplayTitle}}'" onclick="postActions.move(this, '{{$el.ID}}', '{{.Alias}}', {{if $.SingleUser}}true{{else}}false{{end}});return false" data-i18n="[title]articles.publish_tip" i18n-options="{ 'displayTitle': '{{.DisplayTitle}}' }"><span data-i18n="articles.move_to">move to </span>{{.DisplayTitle}}</a>
 			{{end}}
 			{{end}}
 			{{ end }}
 		</h4>
 		{{if .Summary}}<p>{{.Summary}}</p>{{end}}
 	</div>{{end}}
-</div>{{ else }}<div id="no-posts-published"><p>You haven't saved any drafts yet.</p>
-	<p>They'll show up here once you do. Find your blog posts from the <a href="/me/c/">Blogs</a> page.</p>
-	<p class="text-cta"><a href="/">Start writing</a></p></div>{{ end }}
+</div>{{ else }}<div id="no-posts-published"><p data-i18n="articles.no_drafts">You haven't saved any drafts yet.</p>
+	<p data-i18n="[html]articles.no_drafts_detail">They'll show up here once you do. {{if not .SingleUser}}<span data-i18n="[html]articles.no_drafts_detail_not_single">Find your blog posts from the <a href="/me/c/">Blogs</a> page.</span>{{end}}</p>
+	<p class="text-cta"><a href="{{if .SingleUser}}/me/new{{else}}/{{end}}" data-i18n="articles.start_writing">Start writing</a></p></div>{{ end }}
 
 <div id="moving"></div>
 
-<h2 id="unsynced-posts-header" style="display: none">unsynced posts</h2>
+<h2 id="unsynced-posts-header" style="display: none" data-i18n="articles.unsynced_posts">unsynced posts</h2>
 <div id="unsynced-posts-info" style="margin-top: 1em"></div>
 <div id="unsynced-posts" class="atoms"></div>
 

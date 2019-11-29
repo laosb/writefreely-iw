@@ -35,6 +35,7 @@ import (
 	"github.com/writeas/web-core/i18n"
 	"github.com/writeas/web-core/log"
 	"github.com/writeas/web-core/tags"
+	"github.com/writeas/writefreely/config"
 	"github.com/writeas/writefreely/page"
 	"github.com/writeas/writefreely/parse"
 )
@@ -376,8 +377,14 @@ func handleViewPost(app *App, w http.ResponseWriter, r *http.Request) error {
 			Direction:   d,
 		}
 		if !isRaw {
-			post.HTMLContent = template.HTML(applyMarkdown([]byte(content), ""))
+			post.HTMLContent = template.HTML(applyMarkdown([]byte(content), "", app.cfg))
 		}
+	}
+
+	suspended, err := app.db.IsUserSuspended(ownerID.Int64)
+	if err != nil {
+		log.Error("view post: %v", err)
+		return ErrInternalGeneral
 	}
 
 	// Check if post has been unpublished
@@ -427,9 +434,10 @@ func handleViewPost(app *App, w http.ResponseWriter, r *http.Request) error {
 		page := struct {
 			*AnonymousPost
 			page.StaticPage
-			Username string
-			IsOwner  bool
-			SiteURL  string
+			Username  string
+			IsOwner   bool
+			SiteURL   string
+			Suspended bool
 		}{
 			AnonymousPost: post,
 			StaticPage:    pageForReq(app, r),
@@ -440,6 +448,10 @@ func handleViewPost(app *App, w http.ResponseWriter, r *http.Request) error {
 			page.IsOwner = ownerID.Valid && ownerID.Int64 == u.ID
 		}
 
+		if !page.IsOwner && suspended {
+			return ErrPostNotFound
+		}
+		page.Suspended = suspended
 		err = templates["post"].ExecuteTemplate(w, "post", page)
 		if err != nil {
 			log.Error("Post template execute error: %v", err)
@@ -471,7 +483,7 @@ func handleViewPost(app *App, w http.ResponseWriter, r *http.Request) error {
 //   /posts?collection={alias}
 // ? /collections/{alias}/posts
 func newPost(app *App, w http.ResponseWriter, r *http.Request) error {
-	reqJSON := IsJSON(r.Header.Get("Content-Type"))
+	reqJSON := IsJSON(r)
 	vars := mux.Vars(r)
 	collAlias := vars["alias"]
 	if collAlias == "" {
@@ -496,6 +508,15 @@ func newPost(app *App, w http.ResponseWriter, r *http.Request) error {
 	} else {
 		userID = app.db.GetUserID(accessToken)
 	}
+	suspended, err := app.db.IsUserSuspended(userID)
+	if err != nil {
+		log.Error("new post: %v", err)
+		return ErrInternalGeneral
+	}
+	if suspended {
+		return ErrUserSuspended
+	}
+
 	if userID == -1 {
 		return ErrNotLoggedIn
 	}
@@ -508,7 +529,7 @@ func newPost(app *App, w http.ResponseWriter, r *http.Request) error {
 	var p *SubmittedPost
 	if reqJSON {
 		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&p)
+		err = decoder.Decode(&p)
 		if err != nil {
 			log.Error("Couldn't parse new post JSON request: %v\n", err)
 			return ErrBadJSON
@@ -554,9 +575,8 @@ func newPost(app *App, w http.ResponseWriter, r *http.Request) error {
 
 	var newPost *PublicPost = &PublicPost{}
 	var coll *Collection
-	var err error
 	if accessToken != "" {
-		newPost, err = app.db.CreateOwnedPost(p, accessToken, collAlias)
+		newPost, err = app.db.CreateOwnedPost(p, accessToken, collAlias, app.cfg.App.Host)
 	} else {
 		//return ErrNotLoggedIn
 		// TODO: verify user is logged in
@@ -597,7 +617,7 @@ func newPost(app *App, w http.ResponseWriter, r *http.Request) error {
 }
 
 func existingPost(app *App, w http.ResponseWriter, r *http.Request) error {
-	reqJSON := IsJSON(r.Header.Get("Content-Type"))
+	reqJSON := IsJSON(r)
 	vars := mux.Vars(r)
 	postID := vars["post"]
 
@@ -660,6 +680,15 @@ func existingPost(app *App, w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	suspended, err := app.db.IsUserSuspended(userID)
+	if err != nil {
+		log.Error("existing post: %v", err)
+		return ErrInternalGeneral
+	}
+	if suspended {
+		return ErrUserSuspended
 	}
 
 	// Modify post struct
@@ -856,11 +885,20 @@ func addPost(app *App, w http.ResponseWriter, r *http.Request) error {
 		ownerID = u.ID
 	}
 
+	suspended, err := app.db.IsUserSuspended(ownerID)
+	if err != nil {
+		log.Error("add post: %v", err)
+		return ErrInternalGeneral
+	}
+	if suspended {
+		return ErrUserSuspended
+	}
+
 	// Parse claimed posts in format:
 	// [{"id": "...", "token": "..."}]
 	var claims *[]ClaimPostRequest
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&claims)
+	err = decoder.Decode(&claims)
 	if err != nil {
 		return ErrBadJSONArray
 	}
@@ -869,7 +907,7 @@ func addPost(app *App, w http.ResponseWriter, r *http.Request) error {
 	collAlias := vars["alias"]
 
 	// Update all given posts
-	res, err := app.db.ClaimPosts(ownerID, collAlias, claims)
+	res, err := app.db.ClaimPosts(app.cfg, ownerID, collAlias, claims)
 	if err != nil {
 		return err
 	}
@@ -950,13 +988,22 @@ func pinPost(app *App, w http.ResponseWriter, r *http.Request) error {
 		userID = u.ID
 	}
 
+	suspended, err := app.db.IsUserSuspended(userID)
+	if err != nil {
+		log.Error("pin post: %v", err)
+		return ErrInternalGeneral
+	}
+	if suspended {
+		return ErrUserSuspended
+	}
+
 	// Parse request
 	var posts []struct {
 		ID       string `json:"id"`
 		Position int64  `json:"position"`
 	}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&posts)
+	err = decoder.Decode(&posts)
 	if err != nil {
 		return ErrBadJSONArray
 	}
@@ -992,6 +1039,7 @@ func pinPost(app *App, w http.ResponseWriter, r *http.Request) error {
 
 func fetchPost(app *App, w http.ResponseWriter, r *http.Request) error {
 	var collID int64
+	var ownerID int64
 	var coll *Collection
 	var err error
 	vars := mux.Vars(r)
@@ -1007,11 +1055,21 @@ func fetchPost(app *App, w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 		collID = coll.ID
+		ownerID = coll.OwnerID
 	}
 
 	p, err := app.db.GetPost(vars["post"], collID)
 	if err != nil {
 		return err
+	}
+	suspended, err := app.db.IsUserSuspended(ownerID)
+	if err != nil {
+		log.Error("fetch post: %v", err)
+		return ErrInternalGeneral
+	}
+
+	if suspended {
+		return ErrPostNotFound
 	}
 
 	p.extractData()
@@ -1032,7 +1090,7 @@ func fetchPost(app *App, w http.ResponseWriter, r *http.Request) error {
 		}
 
 		p.Collection = &CollectionObj{Collection: *coll}
-		po := p.ActivityObject()
+		po := p.ActivityObject(app.cfg)
 		po.Context = []interface{}{activitystreams.Namespace}
 		return impart.RenderActivityJSON(w, po, http.StatusOK)
 	}
@@ -1060,25 +1118,25 @@ func (p *Post) processPost() PublicPost {
 	return *res
 }
 
-func (p *PublicPost) CanonicalURL() string {
+func (p *PublicPost) CanonicalURL(hostName string) string {
 	if p.Collection == nil || p.Collection.Alias == "" {
-		return p.Collection.hostName + "/" + p.ID
+		return hostName + "/" + p.ID
 	}
 	return p.Collection.CanonicalURL() + p.Slug.String
 }
 
-func (p *PublicPost) ActivityObject() *activitystreams.Object {
+func (p *PublicPost) ActivityObject(cfg *config.Config) *activitystreams.Object {
 	o := activitystreams.NewArticleObject()
 	o.ID = p.Collection.FederatedAPIBase() + "api/posts/" + p.ID
 	o.Published = p.Created
-	o.URL = p.CanonicalURL()
+	o.URL = p.CanonicalURL(cfg.App.Host)
 	o.AttributedTo = p.Collection.FederatedAccount()
 	o.CC = []string{
 		p.Collection.FederatedAccount() + "/followers",
 	}
 	o.Name = p.DisplayTitle()
 	if p.HTMLContent == template.HTML("") {
-		p.formatContent(false)
+		p.formatContent(cfg, false)
 	}
 	o.Content = string(p.HTMLContent)
 	if p.Language.Valid {
@@ -1093,7 +1151,11 @@ func (p *PublicPost) ActivityObject() *activitystreams.Object {
 		if isSingleUser {
 			tagBaseURL = p.Collection.CanonicalURL() + "tag:"
 		} else {
-			tagBaseURL = fmt.Sprintf("%s/%s/tag:", p.Collection.hostName, p.Collection.Alias)
+			if cfg.App.Chorus {
+				tagBaseURL = fmt.Sprintf("%s/read/t/", p.Collection.hostName)
+			} else {
+				tagBaseURL = fmt.Sprintf("%s/%s/tag:", p.Collection.hostName, p.Collection.Alias)
+			}
 		}
 		for _, t := range p.Tags {
 			o.Tag = append(o.Tag, activitystreams.Tag{
@@ -1118,10 +1180,20 @@ func getSlugFromPost(title, body, lang string) string {
 	title = parse.PostLede(title, false)
 	// Truncate lede if needed
 	title, _ = parse.TruncToWord(title, 80)
+	var s string
 	if lang != "" && len(lang) == 2 {
-		return slug.MakeLang(title, lang)
+		s = slug.MakeLang(title, lang)
+	} else {
+		s = slug.Make(title)
 	}
-	return slug.Make(title)
+
+	// Transliteration may cause the slug to expand past the limit, so truncate again
+	s, _ = parse.TruncToWord(s, 80)
+	return strings.TrimFunc(s, func(r rune) bool {
+		// TruncToWord doesn't respect words in a slug, since spaces are replaced
+		// with hyphens. So remove any trailing hyphens.
+		return r == '-'
+	})
 }
 
 // isFontValid returns whether or not the submitted post's appearance is valid.
@@ -1260,6 +1332,12 @@ func viewCollectionPost(app *App, w http.ResponseWriter, r *http.Request) error 
 	}
 	c.hostName = app.cfg.App.Host
 
+	suspended, err := app.db.IsUserSuspended(c.OwnerID)
+	if err != nil {
+		log.Error("view collection post: %v", err)
+		return ErrInternalGeneral
+	}
+
 	// Check collection permissions
 	if c.IsPrivate() && (u == nil || u.ID != c.OwnerID) {
 		return ErrPostNotFound
@@ -1285,21 +1363,42 @@ func viewCollectionPost(app *App, w http.ResponseWriter, r *http.Request) error 
 		coll.Owner = owner
 	}
 
+	postFound := true
 	p, err := app.db.GetPost(slug, coll.ID)
 	if err != nil {
-		if err == ErrCollectionPageNotFound && slug == "feed" {
-			// User tried to access blog feed without a trailing slash, and
-			// there's no post with a slug "feed"
-			return impart.HTTPError{http.StatusFound, c.CanonicalURL() + "/feed/"}
+		if err == ErrCollectionPageNotFound {
+			postFound = false
+
+			if slug == "feed" {
+				// User tried to access blog feed without a trailing slash, and
+				// there's no post with a slug "feed"
+				return impart.HTTPError{http.StatusFound, c.CanonicalURL() + "/feed/"}
+			}
+
+			po := &Post{
+				Slug:     null.NewString(slug, true),
+				Font:     "norm",
+				Language: zero.NewString("en", true),
+				RTL:      zero.NewBool(false, true),
+				Content: `<p class="msg">This page is missing.</p>
+
+Are you sure it was ever here?`,
+			}
+			pp := po.processPost()
+			p = &pp
+		} else {
+			return err
 		}
-		return err
 	}
-	p.IsOwner = owner != nil && p.OwnerID.Valid && owner.ID == p.OwnerID.Int64
+	p.IsOwner = owner != nil && p.OwnerID.Valid && u.ID == p.OwnerID.Int64
 	p.Collection = coll
 	p.IsTopLevel = app.cfg.App.SingleUser
 
+	if !p.IsOwner && suspended {
+		return ErrPostNotFound
+	}
 	// Check if post has been unpublished
-	if p.Content == "" {
+	if p.Content == "" && p.Title.String == "" {
 		return impart.HTTPError{http.StatusGone, "Post was unpublished."}
 	}
 
@@ -1314,20 +1413,29 @@ func viewCollectionPost(app *App, w http.ResponseWriter, r *http.Request) error 
 			contentType = "text/markdown"
 		}
 		w.Header().Set("Content-Type", fmt.Sprintf("%s; charset=utf-8", contentType))
+		if !postFound {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "Post not found.")
+			// TODO: return error instead, so status is correctly reflected in logs
+			return nil
+		}
 		if isMarkdown && p.Title.String != "" {
 			fmt.Fprintf(w, "# %s\n\n", p.Title.String)
 		}
 		fmt.Fprint(w, p.Content)
 	} else if strings.Contains(r.Header.Get("Accept"), "application/activity+json") {
+		if !postFound {
+			return ErrCollectionPageNotFound
+		}
 		p.extractData()
-		ap := p.ActivityObject()
+		ap := p.ActivityObject(app.cfg)
 		ap.Context = []interface{}{activitystreams.Namespace}
 		return impart.RenderActivityJSON(w, ap, http.StatusOK)
 	} else {
 		p.extractData()
 		p.Content = strings.Replace(p.Content, "<!--more-->", "", 1)
 		// TODO: move this to function
-		p.formatContent(cr.isCollOwner)
+		p.formatContent(app.cfg, cr.isCollOwner)
 		tp := struct {
 			*PublicPost
 			page.StaticPage
@@ -1335,15 +1443,31 @@ func viewCollectionPost(app *App, w http.ResponseWriter, r *http.Request) error 
 			IsPinned       bool
 			IsCustomDomain bool
 			PinnedPosts    *[]PublicPost
+			IsFound        bool
+			IsAdmin        bool
+			CanInvite      bool
+			Suspended      bool
 		}{
 			PublicPost:     p,
 			StaticPage:     pageForReq(app, r),
 			IsOwner:        cr.isCollOwner,
 			IsCustomDomain: cr.isCustomDomain,
+			IsFound:        postFound,
+			Suspended:      suspended,
 		}
-		tp.PinnedPosts, _ = app.db.GetPinnedPosts(coll)
+		tp.IsAdmin = u != nil && u.IsAdmin()
+		tp.CanInvite = canUserInvite(app.cfg, tp.IsAdmin)
+		tp.PinnedPosts, _ = app.db.GetPinnedPosts(coll, p.IsOwner)
 		tp.IsPinned = len(*tp.PinnedPosts) > 0 && PostsContains(tp.PinnedPosts, p)
-		if err := templates["collection-post"].ExecuteTemplate(w, "post", tp); err != nil {
+
+		if !postFound {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		postTmpl := "collection-post"
+		if app.cfg.App.Chorus {
+			postTmpl = "chorus-collection-post"
+		}
+		if err := templates[postTmpl].ExecuteTemplate(w, "post", tp); err != nil {
 			log.Error("Error in collection-post template: %v", err)
 		}
 	}

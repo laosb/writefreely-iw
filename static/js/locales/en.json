@@ -1,0 +1,92 @@
+{
+  "common": {
+    "home": "Home",
+    "about": "About",
+    "settings": "Settings",
+    "anonymous": "Anonymous",
+    "reader": "Reader",
+    "sign_up": "Sign Up",
+    "login": "Log in",
+    "logout": "Log out",
+    "my_posts": "My Posts",
+    "blogs": "Blogs",
+    "drafts": "Drafts",
+    "new_post": "New Post",
+    "posts": "posts"
+  },
+  "header": {
+    "dashboard": "Dashboard",
+    "admin_dashboard": "Admin dashboard",
+    "account_settings": "Account settings",
+    "invite_people": "Invite people",
+    "blogs": "Blogs",
+    "drafts": "Drafts",
+    "users": "Users",
+    "pages": "Pages",
+    "view_blog": "View blog",
+    "return_to_editor": "Return to editor",
+    "new_post": "New Post",
+    "customize": "Customize",
+    "stats": "Stats",
+    "admin": "Admin",
+    "export": "Export"
+  },
+  "footer": {
+    "about": "about",
+    "reader": "reader",
+    "privacy": "privacy",
+    "writer_guide": "writer's guide",
+    "source_code": "source code",
+    "based_on_writefreely": "based on WriteFreely ",
+    "published_with": "Published with <a href=\"https://imt.al\">Immortal.Work</a>"
+  },
+  "reader": {
+    "from": "from ",
+    "read_more": "Read more...",
+    "no_posts": "No posts here yet!",
+    "older": "Older",
+    "newer": "Newer"
+  },
+  "articles": {
+    "drafts": "drafts",
+    "edit": "edit",
+    "delete": "delete",
+    "move_tip": "Move this post to one of your blogs",
+    "move_to_label": "move to...",
+    "publish_tip": "Publish this post to your blog '{{displayTitle}}'",
+    "move_to": "move to ",
+    "no_drafts": "You haven't saved any drafts yet.",
+    "no_drafts_detail": "They'll show up here once you do.",
+    "no_drafts_detail_not_single": " Find your blog posts from the <a href=\"/me/c/\">Blogs</a> page.",
+    "start_writing": "Start writing",
+    "unsynced_posts": "unsynced posts",
+    "blogs": "blogs",
+    "new_post": "new post",
+    "customize": "customize",
+    "stats": "stats",
+    "blog_name": "Blog name",
+    "create_btn": "Create",
+    "new_blog": "New blog"
+  },
+  "pad": {
+    "write_placeholder": "Write...",
+    "view_blogs": "View blogs",
+    "view_drafts": "View drafts",
+    "view_posts": "View posts",
+    "draft": "Draft",
+    "publish_to": "Publish to...",
+    "font": "Font",
+    "fonts": {
+      "serif": "Serif",
+      "sans_serif": "Sans-serif",
+      "monospace": "Monospace"
+    },
+    "word_count": "{{count}} word",
+    "word_count_plural": "{{count}} words",
+    "edit_post_metadata": "Edit post metadata",
+    "toggle_theme": "Toggle theme",
+    "publish": "Publish",
+    "no_permission": "You don't have permission to update this post.",
+    "failed_to_post": "Failed to post. Please try again."
+  }
+}
